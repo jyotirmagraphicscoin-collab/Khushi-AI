@@ -1,19 +1,20 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Khushi AI 2.0</title>
+    <title>Khushi AI Fixed</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; cursor: pointer; }
         .ui { position: absolute; bottom: 30px; width: 100%; text-align: center; }
-        #status { color: #ff69b4; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 1px solid #ff69b4; max-width: 80%; }
+        #status { color: #ff69b4; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 1px solid #ff69b4; }
         button { background: #ff69b4; color: white; border: none; padding: 15px 40px; border-radius: 30px; font-weight: bold; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
     <div class="ui">
-        <div id="status">Khushi: Prince, Loading shuru...</div><br>
+        <div id="status">Khushi: Prince, main load ho rahi hoon...</div><br>
         <button id="startBtn">Khushi se Baat Karein</button>
     </div>
 
@@ -50,13 +51,15 @@
         loader.load('./MODEL.vrm', (gltf) => {
             currentVrm = gltf.userData.vrm;
             scene.add(currentVrm.scene);
-            currentVrm.scene.rotation.y = Math.PI;
-            statusText.innerText = "Khushi: Prince, main aa gayi! Click karein.";
-        }, (xhr) => {
-            statusText.innerText = "Loading: " + Math.round((xhr.loaded / xhr.total) * 100) + "%";
+            // ROTATION FIXED: Yahan 0 rakha hai taaki chehra saamne rahe
+            currentVrm.scene.rotation.y = 0; 
+            statusText.innerText = "Khushi: Prince, main taiyar hoon! Click karein.";
         });
 
-        document.body.onclick = () => { window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); };
+        // Audio system ko touch par jagane ke liye
+        document.body.onclick = () => { 
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); 
+        };
 
         document.getElementById('startBtn').onclick = () => {
             const recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
@@ -72,7 +75,7 @@
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: "Tumhara naam Khushi hai. Prince ki dost ho. Hindi mein 1 line mein jawab do: " + text }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: "Tumhara naam Khushi hai. Prince ki dost ho. Hindi mein ek chota jawab do: " + text }] }] })
                     });
                     const data = await response.json();
                     const reply = data.candidates[0].content.parts[0].text;
