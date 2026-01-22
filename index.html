@@ -1,537 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Khushi — 3D Virtual Assistant</title>
+  <meta charset="UTF-8" />
+  <title>Khushi – 3D Virtual Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Three.js + VRM -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.0.6/lib/three-vrm.min.js"></script>
+
   <style>
-    /* Layout + theme */
-    :root{
-      --pink:#ff4da6;
-      --white:#ffffff;
-      --bg:#000000;
-      --ui-bg: rgba(255,255,255,0.03);
-      --panel-bg: rgba(0,0,0,0.6);
-      --glass: rgba(255,255,255,0.03);
-      --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    html,body{
-      height:100%;
-      margin:0;
-      background:var(--bg);
-      color:var(--white);
-      font-family:var(--font-sans);
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-    }
-    #container{
-      width:100%;
-      height:100vh;
-      position:relative;
-      overflow:hidden;
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      font-family: Arial, sans-serif;
+      color: white;
     }
 
-    /* Overlay controls */
-    .ui {
-      position: absolute;
-      right: 20px;
-      top: 20px;
-      width: 320px;
-      max-width: calc(100% - 40px);
-      background: var(--panel-bg);
-      border-radius: 12px;
-      padding: 14px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
-      backdrop-filter: blur(6px);
+    #ui {
+      position: fixed;
+      bottom: 30px;
+      width: 100%;
+      text-align: center;
     }
-    .title {
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .title h1 {
-      margin:0;
-      font-size:18px;
-      color:var(--pink);
-    }
-    .controls { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
-    .btn {
-      background: linear-gradient(90deg, var(--pink), #ff6ebc);
-      color: #000;
-      font-weight:600;
+
+    button {
+      background: #ff4fa3;
+      color: white;
       border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      cursor:pointer;
-      font-size:14px;
-    }
-    .btn:disabled { opacity:0.6; cursor:not-allowed; }
-    label { font-size:13px; color:#ddd; display:block; margin-bottom:4px; }
-    input[type="text"], select {
-      width:100%;
-      padding:8px 10px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.08);
-      background:var(--glass);
-      color:var(--white);
-      outline:none;
-    }
-    .small {
-      font-size:12px;
-      color:#bfbfbf;
-    }
-    .transcript {
-      margin-top:8px;
-      font-size:13px;
-      color:#eee;
-      min-height:34px;
-      background: rgba(255,255,255,0.02);
-      padding:8px;
-      border-radius:8px;
-    }
-    .footer {
-      margin-top:10px;
-      font-size:12px;
-      color:#bbb;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      justify-content:space-between;
+      padding: 14px 26px;
+      font-size: 18px;
+      border-radius: 30px;
+      cursor: pointer;
     }
 
-    /* Small responsive tweak */
-    @media (max-width:420px){
-      .ui { left:10px; right:10px; top:unset; bottom:10px; width:auto; }
+    button:hover {
+      background: #ff2d92;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ffd1e8;
     }
   </style>
 </head>
+
 <body>
-  <div id="container">
-    <div id="canvas-root"></div>
-
-    <aside class="ui" role="region" aria-label="Khushi controls">
-      <div class="title">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <circle cx="12" cy="12" r="10" fill="#111"/>
-          <path d="M8 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <div>
-          <h1>Khushi</h1>
-          <div class="small">3D Virtual Assistant — Hindi (hi-IN)</div>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div>
-          <label for="brainSelect">Brain (Choose)</label>
-          <select id="brainSelect" aria-label="Choose brain">
-            <option value="auto">Auto: use remote if API key present, else local</option>
-            <option value="remote">Remote (OpenAI / Gemini style)</option>
-            <option value="local">Local (on-device best friend)</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="apiKey">Remote API Key (optional)</label>
-          <input id="apiKey" type="text" placeholder="Paste API key here (optional)" />
-          <div class="small">If you provide a key, the app will try to call the remote provider you configure below.</div>
-        </div>
-
-        <div>
-          <label for="provider">Remote provider (example)</label>
-          <select id="provider">
-            <option value="openai">OpenAI (Chat Completions)</option>
-            <option value="generic">Generic Chat HTTP (custom)</option>
-          </select>
-        </div>
-
-        <button id="talkBtn" class="btn" aria-live="polite">Khushi se Baat Karein</button>
-
-        <div class="transcript" id="transcript" aria-live="polite">Khushi tayari hai — "Khushi se Baat Karein" dabayein.</div>
-
-        <div class="footer">
-          <div class="small">Model: <strong id="modelStatus">waiting for MODEL.vrm</strong></div>
-          <div class="small" id="listeningIndicator">● idle</div>
-        </div>
-      </div>
-    </aside>
+  <div id="ui">
+    <button id="talkBtn">💗 Khushi se Baat Karein</button>
+    <div id="status">Ready</div>
   </div>
 
-  <!-- Modules -->
-  <script type="module">
-    // ---------- Imports ----------
-    import * as THREE from 'https://unpkg.com/three@0.150.1/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js';
-    import { GLTFLoader } from 'https://unpkg.com/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
-    // three-vrm via esm.sh (modern builds). Versioning can be updated as needed.
-    import { VRM } from 'https://esm.sh/@pixiv/three-vrm@1.2.0';
+<script>
+/* =========================
+   THREE.JS BASIC SETUP
+========================= */
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-    // ---------- Scene setup ----------
-    const container = document.getElementById('canvas-root');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+let camera = new THREE.PerspectiveCamera(35, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.4, 2.2);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
+let renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
 
-    const camera = new THREE.PerspectiveCamera(33, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.5, 2.6);
+const light = new THREE.DirectionalLight(0xffffff, 1.2);
+light.position.set(1, 2, 3);
+scene.add(light);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.4, 0);
-    controls.enableDamping = true;
-    controls.enablePan = false;
-    controls.minDistance = 1.3;
-    controls.maxDistance = 4;
-    controls.update();
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-    // Lights
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 1.0);
-    scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir.position.set(1, 2, 2);
-    scene.add(dir);
+/* =========================
+   LOAD VRM MODEL
+========================= */
+let vrm;
+const loader = new THREE.GLTFLoader();
 
-    // ---------- VRM loading ----------
-    let vrm = null;
-    const loader = new GLTFLoader();
+THREE.VRMUtils.removeUnnecessaryVertices = true;
+THREE.VRMUtils.removeUnnecessaryJoints = true;
 
-    document.getElementById('modelStatus').textContent = 'loading MODEL.vrm ...';
-    loader.load('/MODEL.vrm', async (gltf) => {
-      try {
-        // VRM.from handles necessary conversions for VRM
-        vrm = await VRM.from(gltf);
-        vrm.scene.rotation.y = 0; // face the user directly
-        // scale & position adjustments for nicer view; tweak if needed
-        vrm.scene.position.set(0, 0, 0);
-        scene.add(vrm.scene);
+loader.load("MODEL.vrm", (gltf) => {
+  THREE.VRM.from(gltf).then((vrmModel) => {
+    vrm = vrmModel;
+    vrm.scene.rotation.y = 0; // face user
+    scene.add(vrm.scene);
+  });
+});
 
-        // initial small pose
-        vrm.scene.position.y = -1.0;
-        document.getElementById('modelStatus').textContent = 'MODEL.vrm loaded';
-      } catch (err) {
-        console.error('VRM conversion failed:', err);
-        document.getElementById('modelStatus').textContent = 'VRM load failed — check console';
-      }
-    }, (progress) => {
-      // optional: progress.loaded / progress.total
-    }, (err) => {
-      console.error('Failed to load MODEL.vrm:', err);
-      document.getElementById('modelStatus').textContent = 'MODEL.vrm not found (put MODEL.vrm in site root)';
-    });
+/* =========================
+   IDLE ANIMATION (Blink + Breath)
+========================= */
+let clock = new THREE.Clock();
 
-    // ---------- Animation helpers ----------
-    let lastBlink = 0;
-    function doBlink() {
-      if (!vrm) return;
-      // Try blendShape proxy, fallback to morphTarget on skinned mesh
-      try {
-        if (vrm.blendShapeProxy && typeof vrm.blendShapeProxy.setValue === 'function') {
-          vrm.blendShapeProxy.setValue('blink', 1.0);
-          setTimeout(()=> vrm.blendShapeProxy.setValue('blink', 0.0), 140);
-          return;
-        }
-        // fallback: try to find blendshape named 'blink'
-        vrm.scene.traverse((o) => {
-          if (o.isMesh && o.morphTargetDictionary) {
-            const idx = o.morphTargetDictionary['blink'] ?? o.morphTargetDictionary['Blink'] ?? null;
-            if (idx !== null && o.morphTargetInfluences) {
-              o.morphTargetInfluences[idx] = 1.0;
-              setTimeout(()=> { o.morphTargetInfluences[idx] = 0.0; }, 140);
-            }
-          }
-        });
-      } catch (e) {
-        console.warn('Blink fallback failed', e);
-      }
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (vrm) {
+    const t = clock.getElapsedTime();
+
+    // Blink
+    vrm.expressionManager.setValue("blink", Math.abs(Math.sin(t * 2)) < 0.05 ? 1 : 0);
+
+    // Breathing
+    vrm.scene.position.y = 0.02 * Math.sin(t * 1.5);
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+/* =========================
+   SPEECH RECOGNITION (HINDI)
+========================= */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = "hi-IN";
+recognition.interimResults = false;
+
+const status = document.getElementById("status");
+const btn = document.getElementById("talkBtn");
+
+btn.onclick = () => {
+  recognition.start();
+  status.innerText = "Khushi sunn rahi hai...";
+};
+
+recognition.onresult = (event) => {
+  const userText = event.results[0][0].transcript;
+  status.innerText = "Aap: " + userText;
+  processBrain(userText);
+};
+
+/* =========================
+   BRAIN SYSTEM (FLEXIBLE)
+========================= */
+async function processBrain(userInput) {
+
+  /*
+    OPTION A – LOCAL BEST FRIEND BRAIN
+    (No API, No Errors, Fully Offline)
+  */
+  const localReplies = {
+    "kaise ho": "Main bilkul badiya hoon, aur aap?",
+    "naam kya hai": "Mera naam Khushi hai.",
+    "tum kya kar sakti ho": "Main aapki baatein sunn sakti hoon aur jawab de sakti hoon."
+  };
+
+  let reply = "Mujhe achha laga aapse baat karke.";
+
+  for (let key in localReplies) {
+    if (userInput.toLowerCase().includes(key)) {
+      reply = localReplies[key];
     }
+  }
 
-    // breathing variables
-    let startTime = performance.now();
+  speak(reply);
 
-    // lip-sync control
-    let lipSyncInterval = null;
-    function setMouthShape(value) {
-      if (!vrm) return;
-      try {
-        if (vrm.blendShapeProxy && typeof vrm.blendShapeProxy.setValue === 'function') {
-          // try 'aa' target (common naming in VRM expression presets)
-          vrm.blendShapeProxy.setValue('aa', value);
-          return;
-        }
-        // fallback: morph target named 'aa' or 'A'
-        vrm.scene.traverse((o) => {
-          if (o.isMesh && o.morphTargetDictionary && o.morphTargetInfluences) {
-            const dict = o.morphTargetDictionary;
-            const possible = ['aa', 'AA', 'A', 'Aa'];
-            for (const name of possible) {
-              if (name in dict) {
-                o.morphTargetInfluences[dict[name]] = value;
-                break;
-              }
-            }
-          }
-        });
-      } catch (e) {
-        console.warn('setMouthShape error', e);
-      }
-    }
+  /*
+    OPTION B – API BRAIN (Future Ready)
+    ---------------------------------
+    Yahan aap OpenAI / Gemini call kar sakte ho:
 
-    // animate loop
-    function animate(now) {
-      const t = (now - startTime) / 1000;
-      requestAnimationFrame(animate);
+    fetch("/api/chat", { method: "POST", body: JSON.stringify({ message: userInput }) })
+  */
+}
 
-      // breathing: subtle up-down
-      if (vrm && vrm.scene) {
-        // small vertical oscillation
-        vrm.scene.position.y = -1.0 + Math.sin(t * 0.8) * 0.005;
-      }
+/* =========================
+   SPEECH + LIP SYNC
+========================= */
+function speak(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "hi-IN";
 
-      // blinking every 3–8 seconds randomly
-      if (now - lastBlink > (3000 + Math.random() * 5000)) {
-        lastBlink = now;
-        doBlink();
-      }
+  utter.onstart = () => {
+    lipInterval = setInterval(() => {
+      if (vrm) vrm.expressionManager.setValue("aa", Math.random());
+    }, 100);
+  };
 
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    requestAnimationFrame(animate);
+  utter.onend = () => {
+    clearInterval(lipInterval);
+    if (vrm) vrm.expressionManager.setValue("aa", 0);
+  };
 
-    // ---------- Speech recognition & TTS ----------
-    const talkBtn = document.getElementById('talkBtn');
-    const transcriptEl = document.getElementById('transcript');
-    const listeningIndicator = document.getElementById('listeningIndicator');
+  speechSynthesis.speak(utter);
+}
+</script>
 
-    // SpeechRecognition (Speech-to-text)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-    } else {
-      transcriptEl.textContent = 'SpeechRecognition unsupported in this browser. Use Chrome or Edge.';
-    }
-
-    // Text-to-speech
-    function speakTextHindi(text, onStart, onEnd) {
-      if (!('speechSynthesis' in window)) {
-        console.warn('No SpeechSynthesis available');
-        onStart && onStart();
-        onEnd && onEnd();
-        return;
-      }
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'hi-IN';
-      // choose a 'hi-IN' voice when available
-      const voices = speechSynthesis.getVoices();
-      const hiVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
-      if (hiVoice) utter.voice = hiVoice;
-
-      utter.rate = 1.0;
-      utter.pitch = 1.0;
-      utter.onstart = () => onStart && onStart();
-      utter.onend = () => onEnd && onEnd();
-      speechSynthesis.cancel(); // ensure no overlap
-      speechSynthesis.speak(utter);
-    }
-
-    // lip-sync controller while TTS is speaking
-    function startLipSyncWhileSpeaking() {
-      if (lipSyncInterval) clearInterval(lipSyncInterval);
-      // randomish mouth movements every 40ms
-      lipSyncInterval = setInterval(() => {
-        // value 0..1
-        const v = Math.random() * 0.9;
-        setMouthShape(v);
-      }, 40);
-    }
-    function stopLipSync() {
-      if (lipSyncInterval) clearInterval(lipSyncInterval);
-      setMouthShape(0);
-    }
-
-    // ---------- Brain logic (remote or local) ----------
-    // Configurable remote brain example: this function shows how to call OpenAI Chat Completions.
-    // NOTE: For security, do not put a private API key into a public repo. Use secrets or env variables in production.
-    async function callRemoteBrain(prompt, provider, apiKey) {
-      if (!apiKey) throw new Error('No API key provided');
-
-      if (provider === 'openai') {
-        // Example OpenAI Chat Completions call (adjust model/method as your provider requires)
-        const payload = {
-          model: 'gpt-4o-mini', // example, change to recommended stable model for your account
-          messages: [
-            { role: 'system', content: 'You are Khushi, a friendly Hindi-speaking virtual assistant. Keep replies concise, helpful and warm.' },
-            { role: 'user', content: prompt }
-          ],
-          max_tokens: 300,
-          temperature: 0.85
-        };
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error('Remote brain error: ' + res.status + ' ' + t);
-        }
-        const json = await res.json();
-        // adapt to response shape
-        const text = json.choices?.[0]?.message?.content ?? (json?.output?.[0]?.content?.[0]?.text) ?? JSON.stringify(json);
-        return text.trim();
-      } else {
-        // Generic HTTP provider example (user can adapt)
-        const res = await fetch('https://your-custom-brain.example.com/chat', {
-          method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({ prompt })
-        });
-        if (!res.ok) throw new Error('Generic remote brain failed: ' + res.status);
-        const json = await res.json();
-        return json.text ?? json.reply ?? JSON.stringify(json);
-      }
-    }
-
-    // Local best-friend brain: simple but flexible rule-based + fallback generator
-    function localBrain(prompt) {
-      const p = prompt.toLowerCase();
-      // greetings
-      if (/(namaste|namaskar|hello|hi|hey|pranam|namaste)/i.test(p)) {
-        return 'Namaste! Main Khushi hoon — aap se milkar achha laga. Aap kaise ho?';
-      }
-      if (/kaise|kya haal|halat|kya chal/i.test(p)) {
-        return 'Main theek hoon — aap batao, aaj kya chal raha hai? Kuch madad chahiye?';
-      }
-      if (/tumhara naam|tum kaun|who are you/i.test(p)) {
-        return 'Mera naam Khushi hai. Main aapki virtual assistant hoon — dosti aur madad dono karne ke liye.';
-      }
-      if (/thanks|dhanyavad|shukriya/i.test(p)) {
-        return 'Aapka swagat hai! Aur kuch chahiye to bataiye.';
-      }
-      if (/\b(bye|alvida|phir milenge|see you)\b/i.test(p)) {
-        return 'Phir milenge! Acha din ho aapka.';
-      }
-      // fallback: friendly echo with suggestion
-      const short = p.length > 160 ? (p.slice(0, 160) + '...') : p;
-      return `Wow — aapne kaha: "${short}"\nMujhe bataiye, aap isme kya chahte hain? Main help kar sakti hoon (summary, suggestions, ya koi action).`;
-    }
-
-    async function getBrainResponse(prompt) {
-      // Decide which brain to use based on UI
-      const mode = document.getElementById('brainSelect').value;
-      const provider = document.getElementById('provider').value;
-      const apiKey = document.getElementById('apiKey').value.trim();
-
-      const useRemote = (mode === 'remote') || (mode === 'auto' && apiKey !== '');
-      if (useRemote) {
-        try {
-          const resp = await callRemoteBrain(prompt, provider, apiKey);
-          return resp;
-        } catch (err) {
-          console.warn('Remote brain failed, falling back to local brain:', err);
-          // fall through to local brain
-        }
-      }
-      // Local brain
-      return localBrain(prompt);
-    }
-
-    // ---------- Hooking recognition -> brain -> TTS & animations ----------
-    if (recognition) {
-      recognition.onstart = () => {
-        listeningIndicator.textContent = '● listening';
-        listeningIndicator.style.color = 'var(--pink)';
-      };
-      recognition.onend = () => {
-        listeningIndicator.textContent = '● idle';
-        listeningIndicator.style.color = '#bfbfbf';
-      };
-      recognition.onerror = (ev) => {
-        console.error('Speech recognition error', ev);
-        transcriptEl.textContent = 'Speech recognition error: ' + (ev.error || ev.message || 'unknown');
-      };
-      recognition.onresult = async (ev) => {
-        const text = Array.from(ev.results).map(r => r[0].transcript).join(' ');
-        transcriptEl.textContent = 'आप: ' + text;
-        // send prompt to brain
-        document.getElementById('talkBtn').disabled = true;
-        try {
-          const resp = await getBrainResponse(text);
-          // show response
-          transcriptEl.textContent = `Khushi: ${resp}`;
-          // speak and animate
-          speakTextHindi(resp,
-            () => { // onStart
-              startLipSyncWhileSpeaking();
-            },
-            () => { // onEnd
-              stopLipSync();
-              document.getElementById('talkBtn').disabled = false;
-            }
-          );
-        } catch (err) {
-          console.error('Brain error', err);
-          transcriptEl.textContent = 'Khushi ko response nahi mila: ' + err.message;
-          document.getElementById('talkBtn').disabled = false;
-        }
-      };
-    }
-
-    // Button behavior: single-press starts recognition; if recognition unsupported: use text prompt (quick fallback)
-    talkBtn.addEventListener('click', async () => {
-      if (!recognition) {
-        // fallback: open prompt
-        const text = prompt('Boliye (likhiye):', '');
-        if (!text) return;
-        transcriptEl.textContent = 'आप: ' + text;
-        document.getElementById('talkBtn').disabled = true;
-        try {
-          const resp = await getBrainResponse(text);
-          transcriptEl.textContent = `Khushi: ${resp}`;
-          speakTextHindi(resp,
-            () => startLipSyncWhileSpeaking(),
-            () => { stopLipSync(); document.getElementById('talkBtn').disabled = false; }
-          );
-        } catch (err) {
-          transcriptEl.textContent = 'Khushi error: ' + err.message;
-          document.getElementById('talkBtn').disabled = false;
-        }
-        return;
-      }
-
-      // Start recognition
-      try {
-        recognition.start();
-      } catch (err) {
-        console.warn('recognition.start() error:', err);
-      }
-    });
-
-    // Resize handling
-    window.addEventListener('resize', () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      renderer.setSize(w, h);
-      camera.aspect = w/h;
-      camera.updateProjectionMatrix();
-    });
-
-    // ---------- Extra safety & UX notes ----------
-    // - Remote API call examples are provided for convenience. For production, route calls through a server-side
-    //   proxy to avoid leaking API keys in the browser.
-    // - If you want better lip-sync, replace the random mouth movement with an analysis of the TTS audio stream
-    //   (requires server-side TTS or WebAudio analysis).
-    // - To support richer facial animations, extend the mapping from phonemes to blend-shapes (viseme mapping).
-    // - VRM conversion errors sometimes happen with older exporters; use a VRM 0.0/1.0 export compatible with three-vrm.
-  </script>
 </body>
 </html>
