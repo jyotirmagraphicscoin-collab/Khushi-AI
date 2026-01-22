@@ -50,7 +50,7 @@
         loader.load('./MODEL.vrm', (gltf) => {
             currentVrm = gltf.userData.vrm;
             scene.add(currentVrm.scene);
-            currentVrm.scene.rotation.y = Math.0;
+            currentVrm.scene.rotation.y = Math.PI;
             statusText.innerText = "Khushi: Prince, main aa gayi! Click karein.";
         }, (xhr) => {
             statusText.innerText = "Loading: " + Math.round((xhr.loaded / xhr.total) * 100) + "%";
