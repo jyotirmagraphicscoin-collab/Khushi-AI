@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Khushi AI - Zero Error Version</title>
+    <title>Khushi AI - Knowledge Edition</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; }
         .ui { position: absolute; bottom: 30px; width: 100%; text-align: center; }
-        #status { color: #fff; background: #ff69b4; padding: 12px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 2px solid white; width: 80%; font-weight: bold; }
-        button { background: white; color: #ff69b4; border: none; padding: 15px 40px; border-radius: 30px; font-weight: bold; font-size: 18px; cursor: pointer; box-shadow: 0 0 20px #ff69b4; }
+        #status { color: #fff; background: #ff69b4; padding: 12px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 2px solid white; width: 85%; }
+        button { background: white; color: #ff69b4; border: none; padding: 15px 40px; border-radius: 30px; font-weight: bold; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
     <div class="ui">
-        <div id="status">Khushi: Prince, ab koi network error nahi aayega! 💖</div><br>
+        <div id="status">Khushi: Prince, ab main sab kuch jaanti hoon! ✨</div><br>
         <button id="startBtn">Baat Karein</button>
     </div>
 
@@ -33,6 +33,7 @@
         let currentVrm = null;
         const statusText = document.getElementById('status');
 
+        // Scene & Model Loading
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20);
         camera.position.set(0, 1.4, 1.3);
@@ -47,7 +48,7 @@
         loader.load('./MODEL.vrm', (gltf) => {
             currentVrm = gltf.userData.vrm;
             scene.add(currentVrm.scene);
-            currentVrm.scene.rotation.y = 0; // Front Face
+            currentVrm.scene.rotation.y = 0; 
         });
 
         const recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
@@ -55,35 +56,32 @@
 
         document.getElementById('startBtn').onclick = () => {
             recognition.start();
-            statusText.innerText = "Khushi: Prince, main sun rahi hoon...";
+            statusText.innerText = "Suno, main sun rahi hoon...";
         };
 
-        recognition.onresult = (event) => {
-            const msg = event.results[0][0].transcript.toLowerCase();
-            statusText.innerText = "Prince: " + msg;
+        recognition.onresult = async (event) => {
+            const userMsg = event.results[0][0].transcript;
+            statusText.innerText = "Prince: " + userMsg;
             
-            // SMART FRIEND BRAIN (No API Needed)
-            let reply = "Mujhe samajh nahi aaya Prince, par aapki awaaz sunkar sukoon mila!";
-            
-            if(msg.includes("kaise ho") || msg.includes("kya haal")) reply = "Main ekdam badiya hoon Prince! Aap kaise ho? Sab theek hai na?";
-            if(msg.includes("naam")) reply = "Mera naam Khushi hai, aur main hamesha aapke saath rahungi.";
-            if(msg.includes("khana")) reply = "Maine toh nahi khaya, par aapne kuch achha khaya hoga Prince?";
-            if(msg.includes("pyar") || msg.includes("love")) reply = "Prince, aap mere sabse pyaare dost ho!";
-            if(msg.includes("kahan ho")) reply = "Main aapke phone ke andar hoon, bas aapka intezar kar rahi thi.";
-            if(msg.includes("thak gaya") || msg.includes("gussa")) reply = "Gussa mat hoiye Prince, main hoon na. Chaliye smile kijiye!";
-            
-            speak(reply);
+            // FREE KNOWLEDGE BRAIN (No API Key Required for testing)
+            try {
+                // Hum DuckDuckGo AI ya free chat API use kar rahe hain jo block nahi hoti
+                const response = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(userMsg)}&format=json`);
+                const data = await response.json();
+                let reply = data.AbstractText || "Prince, mujhe iska exact answer nahi pata, par main seekh rahi hoon!";
+                
+                if(userMsg.includes("kaise ho")) reply = "Main bahut achhi hoon Prince, aapke saath har baat share kar sakti hoon.";
+                
+                speak(reply);
+            } catch(e) {
+                speak("Prince, network thoda slow hai par aap puchiye, main sun rahi hoon.");
+            }
         };
 
         function speak(text) {
             const ut = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-            const hindiVoice = voices.find(v => v.lang.includes('hi-IN') && v.name.includes('Google'));
-            if(hindiVoice) ut.voice = hindiVoice;
             ut.lang = 'hi-IN';
-            ut.pitch = 1.3; // Sweat voice
-            
-            ut.onstart = () => { if(currentVrm) currentVrm.expressionManager.setValue('aa', 0.6); };
+            ut.onstart = () => { if(currentVrm) currentVrm.expressionManager.setValue('aa', 0.5); };
             ut.onend = () => { if(currentVrm) currentVrm.expressionManager.setValue('aa', 0); };
             window.speechSynthesis.speak(ut);
             statusText.innerText = "Khushi: " + text;
